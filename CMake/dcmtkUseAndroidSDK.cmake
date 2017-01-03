@@ -266,24 +266,8 @@ FUNCTION(DCMTK_ANDROID_GET_EMULATOR_NAME VAR EMULATOR_UUID)
             COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} wait-for-device
             TIMEOUT 1
             RESULT_VARIABLE RESULT
-            OUTPUT_QUIET
-            ERROR_QUIET
         )
         IF(NOT RESULT)
-            MESSAGE(STATUS "Remounting filesystem read/write")
-            EXECUTE_PROCESS(
-                COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} shell mount -o rw,remount rootfs 
-                RESULT_VARIABLE RESULT
-                OUTPUT_QUIET
-                ERROR_QUIET
-            )
-            MESSAGE(STATUS "Creating the temporary directory")
-            EXECUTE_PROCESS(
-                COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} shell mkdir /cache 
-                RESULT_VARIABLE RESULT
-                OUTPUT_QUIET
-                ERROR_QUIET
-            )
             DCMTK_ANDROID_GET_EMULATOR_UUID(${EMULATOR} UUID)
             IF(UUID)
                 IF(EMULATOR_UUID STREQUAL UUID)
@@ -312,6 +296,7 @@ ENDFUNCTION()
 #
 FUNCTION(DCMTK_ANDROID_START_EMULATOR VAR)
     DCMTK_SETUP_ANDROID_EMULATOR()
+    MESSAGE(STATUS "Starting emulator named ${ANDROID_EMULATOR_AVD}")
     IF(NOT ANDROID_EMULATOR_AVD)
         MESSAGE(FATAL_ERROR "Please select which Android emulator Android Virtual Device (AVD) configuration to use!")
     ELSE()
@@ -337,17 +322,17 @@ FUNCTION(DCMTK_ANDROID_START_EMULATOR VAR)
             ENDIF()
             MESSAGE(STATUS "Found previously started Android device emulator, checking if it's still present... no")
         ENDIF()
+
         MESSAGE(STATUS "Starting the Android device emulator...")
         IF(CMAKE_HOST_SYSTEM MATCHES "Windows.*")
-            SET(COMMAND sh -c "${ANDROID_EMULATOR_PROGRAM} -avd ${ANDROID_EMULATOR_AVD} -no-boot-anim -noaudio -prop emu.uuid=${EMULATOR_UUID} >/dev/null 2>&1 < /dev/null &")
+            SET(COMMAND sh -c "${ANDROID_EMULATOR_PROGRAM} -avd ${ANDROID_EMULATOR_AVD} -no-boot-anim -prop emu.uuid=${EMULATOR_UUID} >/dev/null 2>&1 < /dev/null &")
         ELSE()
-            SET(COMMAND sh -c "${ANDROID_EMULATOR_PROGRAM} -avd ${ANDROID_EMULATOR_AVD} -no-window -no-boot-anim -noaudio -prop emu.uuid=${EMULATOR_UUID} >/dev/null 2>&1 < /dev/null &")
+            SET(COMMAND sh -c "${ANDROID_EMULATOR_PROGRAM} -avd ${ANDROID_EMULATOR_AVD} -no-window -no-boot-anim -prop emu.uuid=${EMULATOR_UUID} >/dev/null 2>&1 < /dev/null &")
         ENDIF()
+        MESSAGE(STATUS "${COMMAND}")
         EXECUTE_PROCESS(
             COMMAND ${COMMAND}
             RESULT_VARIABLE RESULT
-            OUTPUT_QUIET
-            ERROR_QUIET
         )
         IF(NOT RESULT)
             DCMTK_ANDROID_SET_OBJECT_PROPERTIES(${VAR} STARTING ${EMULATOR_UUID} "")
@@ -383,6 +368,17 @@ FUNCTION(DCMTK_ANDROID_WAIT_FOR_EMULATOR VAR)
             DCMTK_ANDROID_GET_EMULATOR_NAME(EMULATOR_NAME ${EMULATOR_UUID})
         ENDWHILE()
         DCMTK_ANDROID_SET_OBJECT_PROPERTIES(${VAR} RUNNING ${EMULATOR_UUID} ${EMULATOR_NAME})
+
+        MESSAGE(STATUS "Remounting filesystem read/write")
+        EXECUTE_PROCESS(
+            COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR_NAME} shell mount -o rw,remount rootfs
+            RESULT_VARIABLE RESULT
+        )
+        MESSAGE(STATUS "Creating the temporary directory ${ANDROID_TEMPORARY_FILES_LOCATION}")
+        EXECUTE_PROCESS(
+            COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR_NAME} shell mkdir ${ANDROID_TEMPORARY_FILES_LOCATION}
+            RESULT_VARIABLE RESULT
+        )
     ENDIF()
 ENDFUNCTION(DCMTK_ANDROID_WAIT_FOR_EMULATOR)
 
