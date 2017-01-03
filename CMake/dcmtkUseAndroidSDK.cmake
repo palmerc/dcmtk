@@ -261,6 +261,7 @@ FUNCTION(DCMTK_ANDROID_GET_EMULATOR_NAME VAR EMULATOR_UUID)
     WHILE(OFFLINE_EMULATORS)
         LIST(GET OFFLINE_EMULATORS 0 EMULATOR)
         LIST(REMOVE_AT OFFLINE_EMULATORS 0)
+        # When the device has connected adb wait-for-device will return 0
         EXECUTE_PROCESS(
             COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} wait-for-device
             TIMEOUT 1
@@ -269,6 +270,20 @@ FUNCTION(DCMTK_ANDROID_GET_EMULATOR_NAME VAR EMULATOR_UUID)
             ERROR_QUIET
         )
         IF(NOT RESULT)
+            MESSAGE(STATUS "Remounting filesystem read/write")
+            EXECUTE_PROCESS(
+                COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} shell mount -o rw,remount rootfs 
+                RESULT_VARIABLE RESULT
+                OUTPUT_QUIET
+                ERROR_QUIET
+            )
+            MESSAGE(STATUS "Creating the temporary directory")
+            EXECUTE_PROCESS(
+                COMMAND ${ANDROID_ADB_PROGRAM} -s ${EMULATOR} shell mkdir /cache 
+                RESULT_VARIABLE RESULT
+                OUTPUT_QUIET
+                ERROR_QUIET
+            )
             DCMTK_ANDROID_GET_EMULATOR_UUID(${EMULATOR} UUID)
             IF(UUID)
                 IF(EMULATOR_UUID STREQUAL UUID)
